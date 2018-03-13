@@ -10,10 +10,12 @@ import { h } from "@phosphor/virtualdom/lib";
 import { Message } from "@phosphor/messaging";
 import URI from "@theia/core/lib/common/uri";
 import { SelectionService, CommandService } from '@theia/core/lib/common';
-import { ContextMenuRenderer, TreeProps, TreeModel, TreeNode, LabelProvider } from '@theia/core/lib/browser';
+import { ContextMenuRenderer, TreeProps, TreeModel, TreeNode, LabelProvider, KeyCode } from '@theia/core/lib/browser';
 import { FileTreeWidget, DirNode } from "@theia/filesystem/lib/browser";
 import { WorkspaceService, WorkspaceCommands } from '@theia/workspace/lib/browser';
 import { FileNavigatorModel } from "./navigator-model";
+import { FileNavigatorSearch, SearchTerm } from './navigator-search';
+import { DisposableCollection } from '@theia/core/lib/common/disposable';
 
 export const FILE_NAVIGATOR_ID = 'files';
 export const LABEL = 'Files';
@@ -22,6 +24,8 @@ export const CLASS = 'theia-Files';
 @injectable()
 export class FileNavigatorWidget extends FileTreeWidget {
 
+    protected readonly disposables = new DisposableCollection();
+
     constructor(
         @inject(TreeProps) readonly props: TreeProps,
         @inject(FileNavigatorModel) readonly model: FileNavigatorModel,
@@ -29,13 +33,17 @@ export class FileNavigatorWidget extends FileTreeWidget {
         @inject(CommandService) protected readonly commandService: CommandService,
         @inject(SelectionService) protected readonly selectionService: SelectionService,
         @inject(WorkspaceService) protected readonly workspaceService: WorkspaceService,
-        @inject(LabelProvider) protected readonly labelProvider: LabelProvider
+        @inject(LabelProvider) protected readonly labelProvider: LabelProvider,
+        @inject(FileNavigatorSearch) protected readonly navigatorSearch: FileNavigatorSearch,
+        @inject(SearchTerm.Throttle) protected readonly throttle: SearchTerm.Throttle
     ) {
         super(props, model, contextMenuRenderer);
         this.id = FILE_NAVIGATOR_ID;
         this.title.label = LABEL;
         this.addClass(CLASS);
         this.initialize();
+        this.disposables.push(throttle);
+        throttle.onChanged(searchTerm => this.navigatorSearch.search(searchTerm));
     }
 
     protected initialize(): void {
@@ -53,6 +61,11 @@ export class FileNavigatorWidget extends FileTreeWidget {
                 this.update();
             }
         });
+    }
+
+    dispose(): void {
+        super.dispose();
+        this.disposables.dispose();
     }
 
     protected deflateForStorage(node: TreeNode): object {
@@ -80,6 +93,14 @@ export class FileNavigatorWidget extends FileTreeWidget {
         super.onAfterAttach(msg);
         this.addClipboardListener(this.node, 'copy', e => this.handleCopy(e));
         this.addClipboardListener(this.node, 'paste', e => this.handlePaste(e));
+        this.addKeyListener(this.node, (keyCode: KeyCode) => true, e => {
+            const keyCode = KeyCode.createKeyCode(e);
+            if (KeyCode.PRINTABLE(keyCode)) {
+                this.throttle.update(e.key);
+            } else {
+                this.throttle.update(undefined);
+            }
+        });
     }
 
     protected handleCopy(event: ClipboardEvent): void {
@@ -92,12 +113,11 @@ export class FileNavigatorWidget extends FileTreeWidget {
 
     protected handlePaste(event: ClipboardEvent): void {
         const raw = event.clipboardData.getData('text/plain');
-        if (!raw) {
-            return;
-        }
-        const uri = new URI(raw);
-        if (this.model.copy(uri)) {
-            event.preventDefault();
+        if (raw) {
+            const uri = new URI(raw);
+            if (this.model.copy(uri)) {
+                event.preventDefault();
+            }
         }
     }
 

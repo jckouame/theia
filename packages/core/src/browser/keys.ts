@@ -13,7 +13,10 @@ import { isOSX } from '../common/os';
  * Since `M2+M3+<Key>` (Alt+Shift+<Key>) is reserved on MacOS X for writing special characters, such bindings are commonly
  * undefined for platform MacOS X and redefined as `M1+M3+<Key>`. The rule applies on the `M3+M2+<Key>` sequence.
  */
-export declare type Keystroke = { first?: Key, modifiers?: KeyModifier[] };
+export interface Keystroke {
+    readonly first?: Key;
+    readonly modifiers?: KeyModifier[];
+}
 
 export type KeySequence = KeyCode[];
 export namespace KeySequence {
@@ -82,9 +85,9 @@ export namespace KeySequence {
         return keyCodes;
     }
 
-    export function acceleratorFor(keysequence: KeySequence, separator: string = " ") {
+    export function acceleratorFor(keySequence: KeySequence, separator: string = " ") {
         const result: string[] = [];
-        for (const keyCode of keysequence) {
+        for (const keyCode of keySequence) {
             let keyCodeResult = "";
             let previous = false;
 
@@ -310,8 +313,8 @@ export class KeyCode {
         throw new Error(`Cannot get key code from the keyboard event: ${event}.`);
     }
 
-    public static equals(keycode1: KeyCode, keycode2: KeyCode): boolean {
-        return JSON.stringify(keycode1) === JSON.stringify(keycode2);
+    public static equals(keyCode1: KeyCode, keyCode2: KeyCode): boolean {
+        return JSON.stringify(keyCode1) === JSON.stringify(keyCode2);
     }
 
     equals(event: KeyboardEvent | KeyCode): boolean {
@@ -365,6 +368,30 @@ export class KeyCode {
     }
 }
 
+export namespace KeyCode {
+
+    /**
+     * Determines a `true` of `false` value for the key code argument.
+     */
+    export type Predicate = (keyCode: KeyCode) => boolean;
+
+    /**
+     * Predicate for all printable characters.
+     */
+    export const PRINTABLE: Predicate = (input: KeyCode) => {
+        const { key } = input;
+        if (key) {
+            const { keyCode } = key;
+            return (keyCode > 47 && keyCode < 58)     // number keys
+                || (keyCode > 64 && keyCode < 91)     // letter keys
+                || (keyCode > 95 && keyCode < 112)    // numpad keys
+                || (keyCode > 185 && keyCode < 193)   // ;=,-./` (in order)
+                || (keyCode > 218 && keyCode < 223);  // [\]' (in order)
+        }
+        return false;
+    };
+}
+
 export enum KeyModifier {
     /**
      * M1 is the COMMAND key on MacOS X, and the CTRL key on most other platforms.
@@ -412,8 +439,15 @@ export namespace KeyModifier {
     }
 }
 
-export declare type Key = { readonly code: string, readonly keyCode: number };
-export declare type EasyKey = { readonly keyCode: number, readonly easyString: string };
+export interface Key {
+    readonly code: string;
+    readonly keyCode: number;
+}
+
+export interface EasyKey {
+    readonly keyCode: number;
+    readonly easyString: string;
+}
 
 const CODE_TO_KEY: { [code: string]: Key } = {};
 const KEY_CODE_TO_KEY: { [keyCode: number]: Key } = {};
@@ -681,9 +715,9 @@ export namespace Key {
     });
     MODIFIERS.push(...[Key.ALT_LEFT, Key.ALT_RIGHT, Key.CONTROL_LEFT, Key.CONTROL_RIGHT, Key.O_S_LEFT, Key.O_S_RIGHT, Key.SHIFT_LEFT, Key.SHIFT_RIGHT]);
 
-    Object.keys(EasyKey).map(prop => Reflect.get(EasyKey, prop)).forEach(easykey => {
-        EASY_TO_KEY[easykey.easyString] = KEY_CODE_TO_KEY[easykey.keyCode];
-        KEY_CODE_TO_EASY[easykey.keyCode] = easykey;
+    Object.keys(EasyKey).map(prop => Reflect.get(EasyKey, prop)).forEach(easyKey => {
+        EASY_TO_KEY[easyKey.easyString] = KEY_CODE_TO_KEY[easyKey.keyCode];
+        KEY_CODE_TO_EASY[easyKey.keyCode] = easyKey;
     });
 })();
 

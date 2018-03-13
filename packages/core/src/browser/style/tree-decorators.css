@@ -5,6 +5,11 @@
  * You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
  */
 
+.theia-TreeNodeSegment mark {
+    background: var(--theia-highlight-background);
+    color: var(--theia-highlight-color);
+}
+
 .theia-caption-prefix {
     white-space: nowrap;
     padding-right: 2px;

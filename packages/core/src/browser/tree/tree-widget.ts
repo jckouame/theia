@@ -219,7 +219,36 @@ export class TreeWidget extends VirtualWidget implements StatefulWidget {
                 title: tooltip
             };
         }
-        return h.div(attrs, node.name);
+        const highlight = this.getDecorationData(node, 'highlight')[0];
+        const children: h.Child[] = [];
+        const caption = node.name;
+        if (highlight) {
+            let style: ElementInlineStyle = {};
+            if (highlight.color) {
+                style = {
+                    ...style,
+                    color: highlight.color
+                };
+            }
+            if (highlight.backgroundColor) {
+                style = {
+                    ...style,
+                    backgroundColor: highlight.backgroundColor
+                };
+            }
+            const createChildren = (fragment: TreeDecoration.CaptionHighlight.Fragment) => {
+                const { data } = fragment;
+                if (fragment.highligh) {
+                    return h.mark({ className: TreeDecoration.Styles.CAPTION_HIGHLIGHT_CLASS, style }, data);
+                } else {
+                    return data;
+                }
+            };
+            children.push(...TreeDecoration.CaptionHighlight.split(caption, highlight).map(createChildren));
+        } else {
+            children.push(caption);
+        }
+        return h.div(attrs, ...children);
     }
 
     protected decorateCaption(node: TreeNode, attrs: ElementAttrs): ElementAttrs {

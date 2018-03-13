@@ -16,6 +16,9 @@ import { WidgetFactory } from '@theia/core/lib/browser/widget-manager';
 import { CommandContribution } from '@theia/core/lib/common/command';
 import { bindFileNavigatorPreferences } from './navigator-preferences';
 import { FileNavigatorFilter } from './navigator-filter';
+import { NavigatorTreeDecorator } from './navigator-decorator-service';
+import { FuzzySearch, FuzzySearchImpl } from './fuzzy-search';
+import { FileNavigatorSearch, FileNavigatorSearchImpl, SearchTerm } from './navigator-search';
 
 import '../../src/browser/style/index.css';
 
@@ -28,6 +31,14 @@ export default new ContainerModule(bind => {
     bind(KeybindingContribution).toDynamicValue(c => c.container.get(FileNavigatorContribution));
     bind(MenuContribution).toDynamicValue(c => c.container.get(FileNavigatorContribution));
     bind(MenuContribution).to(NavigatorMenuContribution).inSingletonScope();
+
+    bind(FuzzySearchImpl).toSelf().inSingletonScope();
+    bind(FuzzySearch.Search).toService(FuzzySearchImpl);
+    bind(FileNavigatorSearchImpl).toSelf().inSingletonScope();
+    bind(FileNavigatorSearch).toService(FileNavigatorSearchImpl);
+    bind(NavigatorTreeDecorator).toService(FileNavigatorSearchImpl);
+    bind(SearchTerm.ThrottleOptions).toConstantValue(SearchTerm.ThrottleOptions.DEFAULT);
+    bind(SearchTerm.Throttle).toSelf();
 
     bind(FileNavigatorWidget).toDynamicValue(ctx =>
         createFileNavigatorWidget(ctx.container)

@@ -95,7 +95,10 @@ export class BaseWidget extends Widget {
     }
 
     // tslint:disable-next-line:max-line-length
-    protected addKeyListener<K extends keyof HTMLElementEventMap>(element: HTMLElement, keysOrKeyCodes: KeysOrKeyCodes, action: (event: KeyboardEvent) => void, ...additionalEventTypes: K[]): void {
+    protected addKeyListener<K extends keyof HTMLElementEventMap>(
+        element: HTMLElement,
+        keysOrKeyCodes: KeyCode.Predicate | KeysOrKeyCodes,
+        action: (event: KeyboardEvent) => void, ...additionalEventTypes: K[]): void {
         this.toDisposeOnDetach.push(addKeyListener(element, keysOrKeyCodes, action, ...additionalEventTypes));
     }
 
@@ -141,12 +144,22 @@ export function addEventListener<K extends keyof HTMLElementEventMap>(
 }
 
 // tslint:disable-next-line:max-line-length
-export function addKeyListener<K extends keyof HTMLElementEventMap>(element: HTMLElement, keysOrKeyCodes: KeysOrKeyCodes, action: (event: KeyboardEvent) => void, ...additionalEventTypes: K[]): Disposable {
+export function addKeyListener<K extends keyof HTMLElementEventMap>(
+    element: HTMLElement,
+    keysOrKeyCodes: KeyCode.Predicate | KeysOrKeyCodes,
+    action: (event: KeyboardEvent) => void, ...additionalEventTypes: K[]): Disposable {
+
     const toDispose = new DisposableCollection();
-    const isAcceptedKeyCode = (actual: KeyCode) => KeysOrKeyCodes.toKeyCodes(keysOrKeyCodes).some(k => k.equals(actual));
+    const keyCodePredicate = (() => {
+        if (typeof keysOrKeyCodes === 'function') {
+            return keysOrKeyCodes;
+        } else {
+            return (actual: KeyCode) => KeysOrKeyCodes.toKeyCodes(keysOrKeyCodes).some(k => k.equals(actual));
+        }
+    })();
     toDispose.push(addEventListener(element, 'keydown', e => {
         const kc = KeyCode.createKeyCode(e);
-        if (isAcceptedKeyCode(kc)) {
+        if (keyCodePredicate(kc)) {
             action(e);
             e.stopPropagation();
             e.preventDefault();
