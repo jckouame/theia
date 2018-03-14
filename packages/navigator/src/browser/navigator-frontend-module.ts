@@ -18,7 +18,7 @@ import { bindFileNavigatorPreferences } from './navigator-preferences';
 import { FileNavigatorFilter } from './navigator-filter';
 import { NavigatorTreeDecorator } from './navigator-decorator-service';
 import { FuzzySearch, FuzzySearchImpl } from './fuzzy-search';
-import { FileNavigatorSearch, FileNavigatorSearchImpl, SearchTerm } from './navigator-search';
+import { FileNavigatorSearch } from './navigator-search';
 
 import '../../src/browser/style/index.css';
 
@@ -34,11 +34,11 @@ export default new ContainerModule(bind => {
 
     bind(FuzzySearchImpl).toSelf().inSingletonScope();
     bind(FuzzySearch.Search).toService(FuzzySearchImpl);
-    bind(FileNavigatorSearchImpl).toSelf().inSingletonScope();
-    bind(FileNavigatorSearch).toService(FileNavigatorSearchImpl);
-    bind(NavigatorTreeDecorator).toService(FileNavigatorSearchImpl);
-    bind(SearchTerm.ThrottleOptions).toConstantValue(SearchTerm.ThrottleOptions.DEFAULT);
-    bind(SearchTerm.Throttle).toSelf();
+    bind(FileNavigatorSearch.EngineImpl).toSelf().inSingletonScope();
+    bind(FileNavigatorSearch.Engine).toService(FileNavigatorSearch.EngineImpl);
+    bind(NavigatorTreeDecorator).toService(FileNavigatorSearch.EngineImpl);
+    bind(FileNavigatorSearch.ThrottleOptions).toConstantValue(FileNavigatorSearch.ThrottleOptions.DEFAULT);
+    bind(FileNavigatorSearch.Throttle).toSelf();
 
     bind(FileNavigatorWidget).toDynamicValue(ctx =>
         createFileNavigatorWidget(ctx.container)

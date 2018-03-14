@@ -14,7 +14,7 @@ import { ContextMenuRenderer, TreeProps, TreeModel, TreeNode, LabelProvider, Key
 import { FileTreeWidget, DirNode } from "@theia/filesystem/lib/browser";
 import { WorkspaceService, WorkspaceCommands } from '@theia/workspace/lib/browser';
 import { FileNavigatorModel } from "./navigator-model";
-import { FileNavigatorSearch, SearchTerm } from './navigator-search';
+import { FileNavigatorSearch } from './navigator-search';
 import { DisposableCollection } from '@theia/core/lib/common/disposable';
 
 export const FILE_NAVIGATOR_ID = 'files';
@@ -34,8 +34,8 @@ export class FileNavigatorWidget extends FileTreeWidget {
         @inject(SelectionService) protected readonly selectionService: SelectionService,
         @inject(WorkspaceService) protected readonly workspaceService: WorkspaceService,
         @inject(LabelProvider) protected readonly labelProvider: LabelProvider,
-        @inject(FileNavigatorSearch) protected readonly navigatorSearch: FileNavigatorSearch,
-        @inject(SearchTerm.Throttle) protected readonly throttle: SearchTerm.Throttle
+        @inject(FileNavigatorSearch.Engine) protected readonly searchEngine: FileNavigatorSearch.Engine,
+        @inject(FileNavigatorSearch.Throttle) protected readonly throttle: FileNavigatorSearch.Throttle
     ) {
         super(props, model, contextMenuRenderer);
         this.id = FILE_NAVIGATOR_ID;
@@ -43,7 +43,7 @@ export class FileNavigatorWidget extends FileTreeWidget {
         this.addClass(CLASS);
         this.initialize();
         this.disposables.push(throttle);
-        throttle.onChanged(searchTerm => this.navigatorSearch.search(searchTerm));
+        throttle.onChanged(searchTerm => this.searchEngine.filter(searchTerm));
     }
 
     protected initialize(): void {

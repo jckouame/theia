@@ -507,7 +507,6 @@ export class TreeWidget extends VirtualWidget implements StatefulWidget {
         this.addKeyListener(this.node, down, event => this.handleDown(event));
         this.addKeyListener(this.node, Key.ENTER, event => this.handleEnter(event));
         this.addEventListener(this.node, 'contextmenu', e => this.handleContextMenuEvent(this.model.root, e));
-        this.addEventListener(this.node, 'click', e => this.handleClickEvent(this.model.root, e));
     }
 
     protected async handleLeft(event: KeyboardEvent): Promise<void> {

@@ -5,7 +5,7 @@
  * You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-import { inject, injectable, postConstruct } from 'inversify';
+import { inject, injectable } from 'inversify';
 import { Disposable, DisposableCollection } from '@theia/core/lib/common/disposable';
 import { Event, Emitter } from '@theia/core/lib/common/event';
 import { Tree, TreeNode } from '@theia/core/lib/browser/tree/tree';
@@ -13,100 +13,26 @@ import { TreeDecorator, TreeDecoration } from '@theia/core/lib/browser/tree/tree
 import { TopDownTreeIterator } from '@theia/core/lib/browser';
 import { FuzzySearch } from './fuzzy-search';
 
-/**
- * Representation of the file navigator search. Executes a fuzzy search based on the expanded state of the tree.
- */
-export const FileNavigatorSearch = Symbol('FileNavigatorSearch');
-export interface FileNavigatorSearch {
+export namespace FileNavigatorSearch {
 
     /**
-     * Notifies clients about the search term changes.
+     * Representation of the file navigator search engine.
+     * Executes a fuzzy search based on the expanded state of the tree and resolves to the tree nodes that match the search pattern
      */
-    readonly onDidChangeSearchTerm: Event<string | undefined>;
+    export const Engine = Symbol('FileNavigatorSearch.Engine');
+    export interface Engine {
 
-    /**
-     * Resolves when the search has been finished.
-     */
-    search(searchTerm: string | undefined): Promise<void>;
+        /**
+         * Notifies clients about the search term changes.
+         */
+        readonly onDidChangeSearchTerm: Event<string | undefined>;
 
-}
+        /**
+         * Resolves to all the visible tree nodes that match the search pattern.
+         */
+        filter(pattern: string | undefined): Promise<ReadonlyArray<Readonly<TreeNode>>>;
 
-@injectable()
-export class FileNavigatorSearchImpl implements FileNavigatorSearch, TreeDecorator {
-
-    readonly id = 'theia-navigator-search-decorator';
-
-    @inject(Tree)
-    protected readonly tree: Tree;
-    @inject(FuzzySearch.Search)
-    protected readonly fuzzySearch: FuzzySearch.Search;
-
-    protected readonly searchTermEmitter: Emitter<string | undefined> = new Emitter();
-    protected readonly decorationEmitter: Emitter<(tree: Tree) => Map<string, TreeDecoration.Data>> = new Emitter();
-
-    @postConstruct()
-    protected init(): void {
-        console.log('FileNavigatorSearchImpl#init');
     }
-
-    async search(searchTerm: string | undefined): Promise<void> {
-        console.log('SEARCH TERM', searchTerm);
-        if (!searchTerm) {
-            this.fireDidChangeSearchTerm(undefined);
-            return;
-        }
-        const { root } = this.tree;
-        if (!root) {
-            this.fireDidChangeSearchTerm(undefined);
-            return;
-        }
-        const items = [...new TopDownTreeIterator(root, { pruneCollapsed: true })];
-        const pattern = searchTerm;
-        const transform = (node: TreeNode) => node.name;
-        const result = await this.fuzzySearch.filter({
-            items,
-            pattern,
-            transform
-        });
-        this.fireDidChangeDecorations((tree: Tree) => new Map(result.map(m => [m.item.id, this.toDecorator(m)] as [string, TreeDecoration.Data])));
-        this.fireDidChangeSearchTerm(searchTerm);
-    }
-
-    get onDidChangeSearchTerm(): Event<string | undefined> {
-        return this.searchTermEmitter.event;
-    }
-
-    get onDidChangeDecorations(): Event<(tree: Tree) => Map<string, TreeDecoration.Data>> {
-        return this.decorationEmitter.event;
-    }
-
-    protected fireDidChangeSearchTerm(searchTerm: string | undefined) {
-        this.searchTermEmitter.fire(searchTerm);
-    }
-
-    protected fireDidChangeDecorations(event: (tree: Tree) => Map<string, TreeDecoration.Data>): void {
-        this.decorationEmitter.fire(event);
-    }
-
-    protected toDecorator(match: FuzzySearch.Match<TreeNode>): TreeDecoration.Data {
-        return {
-            highlight: {
-                ranges: match.ranges.map(this.mapRange.bind(this))
-            }
-        };
-    }
-
-    protected mapRange(range: FuzzySearch.Range): TreeDecoration.CaptionHighlight.Range {
-        const { offset, length } = range;
-        return {
-            offset,
-            length
-        };
-    }
-
-}
-
-export namespace SearchTerm {
 
     /**
      * Options for the search term throttle.
@@ -123,6 +49,9 @@ export namespace SearchTerm {
 
     export namespace ThrottleOptions {
 
+        /**
+         * The default throttle option.
+         */
         export const DEFAULT: ThrottleOptions = {
             delay: 300
         };
@@ -183,6 +112,76 @@ export namespace SearchTerm {
         protected reset() {
             this.state = undefined;
             this.fireChanged(undefined);
+        }
+
+    }
+
+}
+
+export namespace FileNavigatorSearch {
+
+    @injectable()
+    export class EngineImpl implements Engine, TreeDecorator {
+
+        readonly id = 'theia-navigator-search-decorator';
+
+        @inject(Tree)
+        protected readonly tree: Tree;
+        @inject(FuzzySearch.Search)
+        protected readonly fuzzySearch: FuzzySearch.Search;
+
+        protected readonly searchTermEmitter: Emitter<string | undefined> = new Emitter();
+        protected readonly decorationEmitter: Emitter<(tree: Tree) => Map<string, TreeDecoration.Data>> = new Emitter();
+
+        async filter(pattern: string | undefined): Promise<ReadonlyArray<Readonly<TreeNode>>> {
+            const { root } = this.tree;
+            if (!pattern || !root) {
+                this.fireDidChangeDecorations((tree: Tree) => new Map());
+                this.fireDidChangeSearchTerm(undefined);
+                return [];
+            }
+            const items = [...new TopDownTreeIterator(root, { pruneCollapsed: true })];
+            const transform = (node: TreeNode) => node.name;
+            const result = await this.fuzzySearch.filter({
+                items,
+                pattern,
+                transform
+            });
+            this.fireDidChangeDecorations((tree: Tree) => new Map(result.map(m => [m.item.id, this.toDecorator(m)] as [string, TreeDecoration.Data])));
+            this.fireDidChangeSearchTerm(pattern);
+            return result.map(match => match.item);
+        }
+
+        get onDidChangeSearchTerm(): Event<string | undefined> {
+            return this.searchTermEmitter.event;
+        }
+
+        get onDidChangeDecorations(): Event<(tree: Tree) => Map<string, TreeDecoration.Data>> {
+            return this.decorationEmitter.event;
+        }
+
+        protected fireDidChangeSearchTerm(searchTerm: string | undefined) {
+            this.searchTermEmitter.fire(searchTerm);
+        }
+
+        protected fireDidChangeDecorations(event: (tree: Tree) => Map<string, TreeDecoration.Data>): void {
+            this.decorationEmitter.fire(event);
+        }
+
+        protected toDecorator(match: FuzzySearch.Match<TreeNode>): TreeDecoration.Data {
+            return {
+                highlight: {
+                    ranges: match.ranges.map(this.mapRange.bind(this))
+                }
+            };
+        }
+
+        protected mapRange(range: FuzzySearch.Range): TreeDecoration.CaptionHighlight.Range {
+            const { offset, length } = range;
+            return {
+                offset,
+                length
+            };
         }
 
     }
