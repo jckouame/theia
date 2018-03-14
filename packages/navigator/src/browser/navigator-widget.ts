@@ -10,7 +10,7 @@ import { h } from "@phosphor/virtualdom/lib";
 import { Message } from "@phosphor/messaging";
 import URI from "@theia/core/lib/common/uri";
 import { SelectionService, CommandService } from '@theia/core/lib/common';
-import { ContextMenuRenderer, TreeProps, TreeModel, TreeNode, LabelProvider, KeyCode } from '@theia/core/lib/browser';
+import { ContextMenuRenderer, TreeProps, TreeModel, TreeNode, LabelProvider, KeyCode, Widget, BaseWidget } from '@theia/core/lib/browser';
 import { FileTreeWidget, DirNode } from "@theia/filesystem/lib/browser";
 import { WorkspaceService, WorkspaceCommands } from '@theia/workspace/lib/browser';
 import { FileNavigatorModel } from "./navigator-model";
@@ -25,6 +25,7 @@ export const CLASS = 'theia-Files';
 export class FileNavigatorWidget extends FileTreeWidget {
 
     protected readonly disposables = new DisposableCollection();
+    protected searchBox: SearchBox;
 
     constructor(
         @inject(TreeProps) readonly props: TreeProps,
@@ -96,11 +97,14 @@ export class FileNavigatorWidget extends FileTreeWidget {
         this.addKeyListener(this.node, (keyCode: KeyCode) => true, e => {
             const keyCode = KeyCode.createKeyCode(e);
             if (KeyCode.PRINTABLE(keyCode)) {
-                this.throttle.update(e.key);
+                this.searchBox.updateData(this.throttle.update(e.key));
             } else {
-                this.throttle.update(undefined);
+                this.searchBox.updateData(this.throttle.update(undefined));
             }
         });
+        this.searchBox = new SearchBox(this.node);
+        this.disposables.push(this.searchBox);
+        this.searchBox.hide();
     }
 
     protected handleCopy(event: ClipboardEvent): void {
@@ -135,4 +139,38 @@ export class FileNavigatorWidget extends FileTreeWidget {
         return h.div({ className: 'theia-navigator-container' }, 'You have not yet opened a workspace.', buttonContainer);
     }
 
+}
+
+export class SearchBox extends BaseWidget {
+
+    protected contentNode: HTMLDivElement;
+    protected hidden: boolean;
+
+    constructor(host: HTMLElement) {
+        super();
+        this.addClass(SearchBox.Styles.SEARCH_BOX_CLASS);
+        this.contentNode = document.createElement('div');
+        this.contentNode.innerHTML = 'Search for:';
+        this.node.appendChild(this.contentNode);
+        Widget.attach(this, host);
+        this.hide();
+        this.update();
+    }
+
+    updateData(data: string | undefined): void {
+        if (data === undefined) {
+            this.hide();
+            return;
+        }
+        this.show();
+        this.contentNode.innerHTML = `Search for: ${data}`;
+        this.update();
+    }
+
+}
+
+export namespace SearchBox {
+    export namespace Styles {
+        export const SEARCH_BOX_CLASS = 'theia-search-box';
+    }
 }

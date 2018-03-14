@@ -53,7 +53,7 @@ export namespace FileNavigatorSearch {
          * The default throttle option.
          */
         export const DEFAULT: ThrottleOptions = {
-            delay: 300
+            delay: 50
         };
 
     }
@@ -75,10 +75,10 @@ export namespace FileNavigatorSearch {
             this.disposables.push(this.emitter);
         }
 
-        update(input: string | undefined): void {
+        update(input: string | undefined): string | undefined {
             if (input === undefined) {
                 this.reset();
-                return;
+                return undefined;
             }
             this.clearTimer();
             if (this.state) {
@@ -87,6 +87,7 @@ export namespace FileNavigatorSearch {
                 this.state = input;
             }
             this.timer = window.setTimeout(() => this.fireChanged(this.state), this.options.delay);
+            return this.state;
         }
 
         get onChanged(): Event<string | undefined> {
