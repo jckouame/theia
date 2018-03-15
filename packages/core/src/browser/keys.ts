@@ -375,21 +375,6 @@ export namespace KeyCode {
      */
     export type Predicate = (keyCode: KeyCode) => boolean;
 
-    /**
-     * Predicate for all printable characters.
-     */
-    export const PRINTABLE: Predicate = (input: KeyCode) => {
-        const { key } = input;
-        if (key) {
-            const { keyCode } = key;
-            return (keyCode > 47 && keyCode < 58)     // number keys
-                || (keyCode > 64 && keyCode < 91)     // letter keys
-                || (keyCode > 95 && keyCode < 112)    // numpad keys
-                || (keyCode > 185 && keyCode < 193)   // ;=,-./` (in order)
-                || (keyCode > 218 && keyCode < 223);  // [\]' (in order)
-        }
-        return false;
-    };
 }
 
 export enum KeyModifier {
@@ -575,11 +560,12 @@ export namespace EasyKey {
 
 export namespace Key {
 
+    // tslint:disable-next-line:no-any
     export function isKey(arg: any): arg is Key {
         return !!arg && ('code' in arg) && ('keyCode' in arg);
     }
 
-    export function getKey(arg: string | number) {
+    export function getKey(arg: string | number): Key {
         if (typeof arg === "number") {
             return KEY_CODE_TO_KEY[arg] || {
                 code: 'unknown',
@@ -590,15 +576,19 @@ export namespace Key {
         }
     }
 
-    export function getEasyKey(key: Key) {
+    export function getEasyKey(key: Key): EasyKey {
         return KEY_CODE_TO_EASY[key.keyCode];
     }
 
-    export function isModifier(arg: string | number) {
+    export function isModifier(arg: string | number): boolean {
         if (typeof arg === "number") {
             return MODIFIERS.map(key => key.keyCode).indexOf(arg) > 0;
         }
         return MODIFIERS.map(key => key.code).indexOf(arg) > 0;
+    }
+
+    export function equals(key: Key, keyCode: KeyCode): boolean {
+        return !!keyCode.key && key.keyCode === keyCode.key.keyCode;
     }
 
     export const ENTER: Key = { code: "Enter", keyCode: 13 };

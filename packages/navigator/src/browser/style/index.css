@@ -32,18 +32,4 @@
     width: 100%;
 }
 
-.theia-search-box {
-    position: absolute;
-    top: 0px;
-    right: 0px;
-    border: 1px solid var(--theia-border-color1);
-    background-color: var(--theia-layout-color3);
-}
-
-.theia-search-box .no-match {
-    color: var(--theia-error-color0);
-}
-
-.theia-search-box .hidden {
-    display: none;
-}
+@import './search-box.css';

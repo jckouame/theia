@@ -64,6 +64,7 @@ export namespace FuzzySearch {
          * Function that extracts the string from the inputs which will be used to evaluate the fuzzy matching filter.
          */
         readonly transform: (item: T) => string;
+
     }
 
     /**
@@ -92,7 +93,11 @@ export class FuzzySearchImpl implements FuzzySearch.Search {
             pre: FuzzySearchImpl.PRE,
             post: FuzzySearchImpl.POST,
             extract: input.transform
-        }).map(this.mapResult.bind(this));
+        }).sort(this.sortResults.bind(this)).map(this.mapResult.bind(this));
+    }
+
+    protected sortResults<T>(left: fuzzy.FilterResult<T>, right: fuzzy.FilterResult<T>): number {
+        return left.index - right.index;
     }
 
     protected mapResult<T>(result: fuzzy.FilterResult<T>): FuzzySearch.Match<T> {

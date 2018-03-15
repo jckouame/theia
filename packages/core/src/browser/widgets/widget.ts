@@ -94,7 +94,6 @@ export class BaseWidget extends Widget {
         this.toDisposeOnDetach.push(addEventListener(element, type, listener));
     }
 
-    // tslint:disable-next-line:max-line-length
     protected addKeyListener<K extends keyof HTMLElementEventMap>(
         element: HTMLElement,
         keysOrKeyCodes: KeyCode.Predicate | KeysOrKeyCodes,
@@ -143,7 +142,6 @@ export function addEventListener<K extends keyof HTMLElementEventMap>(
     );
 }
 
-// tslint:disable-next-line:max-line-length
 export function addKeyListener<K extends keyof HTMLElementEventMap>(
     element: HTMLElement,
     keysOrKeyCodes: KeyCode.Predicate | KeysOrKeyCodes,

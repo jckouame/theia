@@ -5,17 +5,18 @@
  * You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-import { injectable, inject } from "inversify";
-import { h } from "@phosphor/virtualdom/lib";
-import { Message } from "@phosphor/messaging";
-import URI from "@theia/core/lib/common/uri";
+import { injectable, inject } from 'inversify';
+import { h } from '@phosphor/virtualdom/lib';
+import { Message } from '@phosphor/messaging';
+import URI from '@theia/core/lib/common/uri';
 import { SelectionService, CommandService } from '@theia/core/lib/common';
-import { ContextMenuRenderer, TreeProps, TreeModel, TreeNode, LabelProvider, KeyCode, Widget, BaseWidget } from '@theia/core/lib/browser';
-import { FileTreeWidget, DirNode } from "@theia/filesystem/lib/browser";
+import { ContextMenuRenderer, TreeProps, TreeModel, TreeNode, LabelProvider, KeyCode, Widget, SelectableTreeNode } from '@theia/core/lib/browser';
+import { FileTreeWidget, DirNode } from '@theia/filesystem/lib/browser';
 import { WorkspaceService, WorkspaceCommands } from '@theia/workspace/lib/browser';
-import { FileNavigatorModel } from "./navigator-model";
+import { FileNavigatorModel } from './navigator-model';
 import { FileNavigatorSearch } from './navigator-search';
 import { DisposableCollection } from '@theia/core/lib/common/disposable';
+import { SearchBox } from './search-box';
 
 export const FILE_NAVIGATOR_ID = 'files';
 export const LABEL = 'Files';
@@ -25,7 +26,7 @@ export const CLASS = 'theia-Files';
 export class FileNavigatorWidget extends FileTreeWidget {
 
     protected readonly disposables = new DisposableCollection();
-    protected searchBox: SearchBox;
+    protected readonly searchBox: SearchBox.Widget;
 
     constructor(
         @inject(TreeProps) readonly props: TreeProps,
@@ -36,15 +37,29 @@ export class FileNavigatorWidget extends FileTreeWidget {
         @inject(WorkspaceService) protected readonly workspaceService: WorkspaceService,
         @inject(LabelProvider) protected readonly labelProvider: LabelProvider,
         @inject(FileNavigatorSearch.Engine) protected readonly searchEngine: FileNavigatorSearch.Engine,
-        @inject(FileNavigatorSearch.Throttle) protected readonly throttle: FileNavigatorSearch.Throttle
+        @inject(SearchBox.Factory) protected readonly searchBoxFactory: SearchBox.Factory
     ) {
         super(props, model, contextMenuRenderer);
         this.id = FILE_NAVIGATOR_ID;
         this.title.label = LABEL;
         this.addClass(CLASS);
         this.initialize();
-        this.disposables.push(throttle);
-        throttle.onChanged(searchTerm => this.searchEngine.filter(searchTerm));
+        this.searchBox = searchBoxFactory(SearchBox.Props.DEFAULT);
+        this.disposables.pushAll([
+            this.model.onExpansionChanged(() => this.searchBox.hide()),
+            this.searchEngine,
+            this.searchEngine.onFilteredNodesChanged(nodes => {
+                const node = nodes.find(SelectableTreeNode.is);
+                if (node) {
+                    this.model.selectNode(node);
+                }
+            }),
+            this.searchBox,
+            this.searchBox.onTextChange(data => this.searchEngine.filter(data)),
+            this.searchBox.onClose(data => this.searchEngine.filter(undefined)),
+            this.searchBox.onNext(() => this.model.selectNextNode()),
+            this.searchBox.onPrevious(() => this.model.selectPrevNode()),
+        ]);
     }
 
     protected initialize(): void {
@@ -94,17 +109,8 @@ export class FileNavigatorWidget extends FileTreeWidget {
         super.onAfterAttach(msg);
         this.addClipboardListener(this.node, 'copy', e => this.handleCopy(e));
         this.addClipboardListener(this.node, 'paste', e => this.handlePaste(e));
-        this.addKeyListener(this.node, (keyCode: KeyCode) => true, e => {
-            const keyCode = KeyCode.createKeyCode(e);
-            if (KeyCode.PRINTABLE(keyCode)) {
-                this.searchBox.updateData(this.throttle.update(e.key));
-            } else {
-                this.searchBox.updateData(this.throttle.update(undefined));
-            }
-        });
-        this.searchBox = new SearchBox(this.node);
-        this.disposables.push(this.searchBox);
-        this.searchBox.hide();
+        Widget.attach(this.searchBox, this.node);
+        this.addKeyListener(this.node, this.searchBox.keyCodePredicate.bind(this.searchBox), this.searchBox.handle.bind(this.searchBox));
     }
 
     protected handleCopy(event: ClipboardEvent): void {
@@ -139,38 +145,4 @@ export class FileNavigatorWidget extends FileTreeWidget {
         return h.div({ className: 'theia-navigator-container' }, 'You have not yet opened a workspace.', buttonContainer);
     }
 
-}
-
-export class SearchBox extends BaseWidget {
-
-    protected contentNode: HTMLDivElement;
-    protected hidden: boolean;
-
-    constructor(host: HTMLElement) {
-        super();
-        this.addClass(SearchBox.Styles.SEARCH_BOX_CLASS);
-        this.contentNode = document.createElement('div');
-        this.contentNode.innerHTML = 'Search for:';
-        this.node.appendChild(this.contentNode);
-        Widget.attach(this, host);
-        this.hide();
-        this.update();
-    }
-
-    updateData(data: string | undefined): void {
-        if (data === undefined) {
-            this.hide();
-            return;
-        }
-        this.show();
-        this.contentNode.innerHTML = `Search for: ${data}`;
-        this.update();
-    }
-
-}
-
-export namespace SearchBox {
-    export namespace Styles {
-        export const SEARCH_BOX_CLASS = 'theia-search-box';
-    }
 }

@@ -61,6 +61,20 @@ describe('fuzzy-search', () => {
         });
     });
 
+    ([
+        ['con', ['configs', 'base.tsconfig.json', 'tsconfig.json', 'base.nyc.json', 'CONTRIBUTING.MD']],
+        ['bcn', ['baconing', 'narwhal', 'a mighty bear canoe'], ['baconing', 'a mighty bear canoe']]
+    ] as ([string, string[], string[]])[]).forEach(test => {
+        const [pattern, items, expected] = test;
+        it(`should match the order of items after the filtering with pattern: '${pattern}'`, async () => {
+            expectOrder(await search(pattern, items), expected || items);
+        });
+    });
+
+    function expectOrder(actual: FuzzySearch.Match<string>[], expected: string[]) {
+        expect(actual.map(result => result.item)).to.be.deep.equal(expected);
+    }
+
     function expectSearch(actual: FuzzySearch.Match<string>[], expected: FuzzySearch.Match<string>[]) {
         expect(actual).to.be.deep.equal(expected);
     }
